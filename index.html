@@ -165,8 +165,8 @@
     /* ── Searchable area combobox (DI rows + Budget by Area) ── */
     .di-area-wrap { position:relative; width:100%; }
     .di-area-wrap input { width:100%; }
-    .di-area-dropdown { position:absolute; background:var(--surface2); border:1px solid var(--accent); max-height:220px; overflow-y:auto; z-index:9999; display:none; box-shadow:0 4px 16px rgba(0,0,0,.35); }
-    .di-area-opt { padding:7px 12px; font-size:.83rem; cursor:pointer; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .di-area-dropdown { position:absolute; background:var(--surface2); border:1px solid var(--accent); max-height:60vh; overflow:auto; resize:both; z-index:9999; display:none; box-shadow:0 4px 16px rgba(0,0,0,.35); min-width:220px; }
+    .di-area-opt { padding:7px 12px; font-size:.83rem; cursor:pointer; color:var(--text); white-space:normal; overflow-wrap:anywhere; word-break:break-word; gap:8px; }
     .di-area-opt:hover, .di-area-opt.hi { background:var(--accent); color:#000; font-weight:600; }
     .di-emp-wrap { position:relative; flex:1; }
     .di-emp-wrap input { width:100%; }
@@ -176,8 +176,8 @@
     .di-emp-opt-num { font-size:.75rem; opacity:.7; min-width:28px; text-align:right; }
     .budget-area-wrap { position:relative; max-width:280px; }
     .budget-area-wrap input { width:100%; }
-    .budget-area-dropdown { position:absolute; top:100%; left:0; right:0; background:var(--surface2); border:1px solid var(--accent); border-top:none; border-radius:0 0 8px 8px; max-height:260px; overflow-y:auto; z-index:999; display:none; min-width:220px; }
-    .budget-area-opt { padding:8px 12px; font-size:.83rem; cursor:pointer; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .budget-area-dropdown { position:absolute; top:100%; left:0; right:0; background:var(--surface2); border:1px solid var(--accent); border-top:none; border-radius:0 0 8px 8px; max-height:60vh; overflow:auto; resize:both; z-index:999; display:none; min-width:220px; }
+    .budget-area-opt { padding:8px 12px; font-size:.83rem; cursor:pointer; color:var(--text); white-space:normal; overflow-wrap:anywhere; word-break:break-word; }
     .budget-area-opt:hover, .budget-area-opt.hi { background:var(--accent); color:#000; font-weight:600; }
 
     /* ── Change Orders ── */
@@ -1151,6 +1151,10 @@
             <div style="font-size:.8rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Submission Log</div>
             <div id="di-compile-selected-bar" style="display:none;align-items:center;gap:8px;"></div>
           </div>
+          <div style="margin-bottom:10px;">
+            <button id="di-select-all-btn" class="btn btn-outline" style="display:none;margin-top:0;padding:6px 14px;font-size:.8rem;" onclick="diSelectAllVisible()" title="Select every daily input currently listed">☑ Select all</button>
+            <button id="di-export-excel-btn" class="btn" style="display:none;margin-top:0;padding:6px 14px;font-size:.8rem;background:#1a56db;color:#fff;border:none;" onclick="diExportSelectedToExcel()" title="Export the daily inputs selected via the checkboxes to an Excel file">⬇ Export selected to Excel</button>
+          </div>
           <div id="di-log-wrap" style="overflow-x:auto;position:relative;">
             <table style="min-width:700px;width:100%;border-collapse:collapse;font-size:.82rem;">
               <thead>
@@ -1296,7 +1300,7 @@
       <option value="">All Jobs</option>
     </select>
     <button id="co-submit-btn" class="btn" style="margin:0;padding:7px 16px;font-size:.83rem;" onclick="coOpenSubmitModal(false)">+ Submit Change Order</button>
-    <button id="co-submit-burn-btn" class="btn" style="display:none;margin:0;padding:7px 16px;font-size:.83rem;background:var(--red);border-color:var(--red);color:#fff;" onclick="coOpenSubmitModal(true)">🔥 Submit 503 Burn</button>
+    <button id="co-submit-burn-btn" class="btn" style="display:none;margin:0;padding:7px 16px;font-size:.83rem;background:var(--red);border-color:var(--red);color:#fff;" onclick="coOpenSubmitModal(true)">🔥 Submit Work Order</button>
   </div>
 
   <!-- Sub-tabs: Change Orders / Burns -->
@@ -1307,7 +1311,7 @@
     </button>
     <button id="co-subtab-burn" onclick="coSetSubTab('burn')"
       style="padding:8px 20px;font-size:.85rem;font-weight:600;border:none;border-bottom:3px solid transparent;background:none;color:var(--muted);cursor:pointer;margin-bottom:-2px;">
-      🔥 Burns
+      🔥 Work Orders
     </button>
   </div>
 
@@ -2427,7 +2431,7 @@ function renderAreaBudget() {
   jobLabel.textContent = fileName || '';
   // Clear the combobox input and stored areas
   const input = document.getElementById('area-budget-select');
-  if (input) { input.value = ''; input._areas = []; }
+  if (input) { input.value = ''; input._rawArea = ''; input._areas = []; }
   if (!fileName) {
     tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--muted);">Select a job to view budget by area.</td></tr>';
     return;
@@ -2441,7 +2445,7 @@ function renderAreaBudget() {
 
 function renderAreaBudgetTable() {
   const fileName = document.getElementById('pr-csv-file').value;
-  const area     = document.getElementById('area-budget-select').value;
+  const area     = _selectedAreaRaw('area-budget-select');
   const tbody    = document.getElementById('area-budget-tbody');
   if (!area) {
     tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--muted);">Select an area above.</td></tr>';
@@ -2484,7 +2488,7 @@ function renderAreaBudgetTable() {
 
 function exportAreaBudgetCSV() {
   const fileName = document.getElementById('pr-csv-file').value;
-  const area     = document.getElementById('area-budget-select').value;
+  const area     = _selectedAreaRaw('area-budget-select');
   if (!fileName) { alert('Please select a job first.'); return; }
   const f = getSavedCSVFiles().find(x=>x.name===fileName);
   if (!f) return;
@@ -2537,7 +2541,7 @@ function exportBudgetExcel() {
   if (!f) return;
 
   const allEntries = getPayrollEntries().filter(e => e.csvFile === fileName);
-  const areaFilter = document.getElementById('area-budget-select').value;
+  const areaFilter = _selectedAreaRaw('area-budget-select');
   const areas = areaFilter
     ? [areaFilter]
     : [...new Set(f.rows.map(r => r.area).filter(a => a && a !== '—'))].sort();
@@ -5147,7 +5151,7 @@ function diRenderCrewTable() {
     let html = `<tr style="border-top:1px solid var(--border);${bgStyle}">
       <td style="padding:6px 8px;">
         <div class="di-area-wrap">
-          <input class="fi" style="width:100%;padding:6px 8px;font-size:.85rem;" value="${eh(row.area)}" placeholder="Search area…"
+          <input class="fi" style="width:100%;padding:6px 8px;font-size:.85rem;" value="${eh(areaDisplayLabel(row.area))}" placeholder="Search area…"
             oninput="diAreaInput(this,${_diActiveCrew},${i})"
             onfocus="diAreaOpen(this,${_diActiveCrew},${i})"
             onblur="diAreaBlur(this,${_diActiveCrew},${i})"
@@ -5182,7 +5186,7 @@ function diRenderCrewTable() {
       const exOpts = _diMakeCodeOpts(row.area, ex.costCode, jobName, csvFile);
       html += `<tr style="${bgStyle}border-top:1px solid rgba(255,255,255,.04);">
         <td style="padding:3px 8px 3px 20px;">
-          <span style="font-size:.78rem;color:var(--muted);font-style:italic;">↳ ${eh(row.area || '—')}</span>
+          <span style="font-size:.78rem;color:var(--muted);font-style:italic;">↳ ${eh(areaDisplayLabel(row.area) || '—')}</span>
         </td>
         <td style="padding:3px 8px;">
           <select class="fi" style="width:100%;padding:5px 8px;font-size:.85rem;" onchange="_diData[${_diActiveCrew}][${i}].extraEntries[${xi}].costCode=this.value;diAutoSaveDraft()">
@@ -5436,6 +5440,15 @@ function _diAreaList() {
   const jobName = document.getElementById('ps-job-select').value;
   if (!jobName) return [];
   const base = psGetAreas(jobName); // CSV + payroll + COR/Burn areas
+  // Every approved Change Order / Work Order for this job, newest first. Ensures freshly
+  // approved COs/WOs always show up in the Area Worked dropdown (including at $0 remaining,
+  // which psGetAreas hides) and sorts the most recently approved one to the very top.
+  const _activeCOIds = new Set((_cache.changeorders || []).map(c => c.id));
+  const coAreas = (_cache.corbudgets || [])
+    .filter(b => b.jobId === jobName && _activeCOIds.has(b.changeOrderId))
+    .slice()
+    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+    .map(corbAreaKey);
   // Also surface areas that were added by a weekly paysheet edit — they may not
   // appear in the CSV or budget, so they wouldn't be in psGetAreas() otherwise.
   const psExtra = [];
@@ -5448,7 +5461,8 @@ function _diAreaList() {
       });
     });
   });
-  return psExtra.length ? [...psExtra, ...base] : base;
+  // CO/WO areas first (newest → oldest), then paysheet-added areas, then everything else. Deduped.
+  return [...new Set([...coAreas, ...psExtra, ...base])];
 }
 
 // Build a map of { area → _psTag } from the DI cache for a given job
@@ -5473,6 +5487,10 @@ function _diGetPortal() {
     p.id = '_di-area-portal';
     p.className = 'di-area-dropdown';
     document.body.appendChild(p);
+    // Remember a user-dragged width (resize handle) so it sticks across re-opens.
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(() => { if (p.style.display !== 'none') p._userW = p.getBoundingClientRect().width; }).observe(p);
+    }
   }
   return p;
 }
@@ -5507,18 +5525,18 @@ function _diAreaRenderDropdown(input, crew, rowIdx) {
         // Hide areas where every CSV row is code 999 (no accessible code remains)
         return !areaRows.length || areaRows.some(r => isForemanAllowedCode(r.costCode));
       });
-  const filtered = q ? _diAllVisible.filter(a => a.toLowerCase().includes(q)) : _diAllVisible;
+  const filtered = q ? _diAllVisible.filter(a => areaDisplayLabel(a).toLowerCase().includes(q) || a.toLowerCase().includes(q)) : _diAllVisible;
   if (!filtered.length) { dropdown.style.display = 'none'; return; }
   const tagMap   = _diPsTagMap(jobName);
   dropdown.innerHTML = filtered.map(a => {
     const tag = tagMap[a];
     let nameLabel;
     if (tag === 'added') {
-      nameLabel = `${eh(a)}&nbsp;<span style="color:#22c55e;font-size:.68rem;font-weight:700;">(Added)</span>`;
+      nameLabel = `${eh(areaDisplayLabel(a))}&nbsp;<span style="color:#22c55e;font-size:.68rem;font-weight:700;">(Added)</span>`;
     } else if (tag === 'removed') {
-      nameLabel = `<s>${eh(a)}</s>&nbsp;<span style="color:#ef4444;font-size:.68rem;font-weight:700;">(Removed)</span>`;
+      nameLabel = `<s>${eh(areaDisplayLabel(a))}</s>&nbsp;<span style="color:#ef4444;font-size:.68rem;font-weight:700;">(Removed)</span>`;
     } else {
-      nameLabel = eh(a);
+      nameLabel = eh(areaDisplayLabel(a));
     }
     const rem = _diAreaRemainingBudget(jobName, a);
     let remLabel = '';
@@ -5557,7 +5575,7 @@ function _diAreaRenderDropdown(input, crew, rowIdx) {
   const below  = vvh - rect.bottom;
   const above  = rect.top;
   dropdown.style.left  = (rect.left + scrollX) + 'px';
-  dropdown.style.width = rect.width + 'px';
+  dropdown.style.width = (dropdown._userW || rect.width) + 'px';
   dropdown.style.right = '';
   if (below >= needed || below >= above) {
     // Open downward
@@ -6499,6 +6517,21 @@ function diClearSelectedInputs() {
   try { diRenderLogRows(); } catch(_) {}
 }
 
+// Select (or, if all are already selected, clear) every daily input currently listed
+// in the Submission Log. Reads the rendered row checkboxes so it respects the active
+// job / pay-week / column filters. Purely additive — reuses the existing selection set.
+function diSelectAllVisible() {
+  const boxes = Array.from(document.querySelectorAll('#di-log-tbody input[type="checkbox"][data-di-id]'));
+  if (!boxes.length) { alert('No daily inputs are currently listed to select.'); return; }
+  const ids = boxes.map(b => b.getAttribute('data-di-id'));
+  const allSelected = ids.every(id => _diSelectedInputs.has(id));
+  if (allSelected) ids.forEach(id => _diSelectedInputs.delete(id));
+  else             ids.forEach(id => _diSelectedInputs.add(id));
+  diRenderLogRows();
+  const btn = document.getElementById('di-select-all-btn');
+  if (btn) btn.textContent = allSelected ? '☑ Select all' : '☑ Deselect all';
+}
+
 function _renderCompileSelectedBar() {
   const bar = document.getElementById('di-compile-selected-bar');
   if (!bar) return;
@@ -6564,6 +6597,13 @@ function diRenderLogRows() {
   const tbody    = document.getElementById('di-log-tbody');
   const filterRow = document.getElementById('di-log-filter-inputs');
   if (!tbody) return;
+
+  // Admin-only: reveal the "Export selected to Excel" button for admins; hidden for all other roles.
+  const _diXlsBtn = document.getElementById('di-export-excel-btn');
+  if (_diXlsBtn) _diXlsBtn.style.display = isAdmin() ? '' : 'none';
+  // Show the "Select all" button for roles that can select/compile (same audience as the row checkboxes).
+  const _diSelAllBtn = document.getElementById('di-select-all-btn');
+  if (_diSelAllBtn) _diSelAllBtn.style.display = canCompilePaysheet() ? '' : 'none';
 
   const jobName = document.getElementById('ps-job-select').value;
   let docs = _diLogDocs;
@@ -6718,7 +6758,7 @@ function diRenderLogRows() {
     }).join('');
     return `<tr style="border-top:1px solid var(--border);${rowBg}">
       <td style="padding:4px 4px;white-space:nowrap;text-align:center;">
-        ${canCompilePaysheet() ? `<input type="checkbox" onclick="event.stopPropagation();diToggleSelectInput('${r.id.replace(/'/g,"\\'")}')" ${_diSelectedInputs.has(r.id)?'checked':''} title="Select to compile" style="cursor:pointer;vertical-align:middle;margin:0 3px 0 0;" />` : ''}
+        ${canCompilePaysheet() ? `<input type="checkbox" data-di-id="${eh(r.id)}" onclick="event.stopPropagation();diToggleSelectInput('${r.id.replace(/'/g,"\\'")}')" ${_diSelectedInputs.has(r.id)?'checked':''} title="Select to compile" style="cursor:pointer;vertical-align:middle;margin:0 3px 0 0;" />` : ''}
         <button onclick="diToggleLogDetail('${safeId}')" id="ditog_${safeId}"
           style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.78rem;padding:2px 5px;border-radius:3px;transition:transform .15s;transform:${isOpen?'rotate(90deg)':''}"
           title="Show details">▶</button>
@@ -7741,19 +7781,20 @@ function psJobChanged() { onJobChanged(); }
 function psPopulateAreaBudgetSelect() {
   const jobName = document.getElementById('ps-job-select').value;
   const input   = document.getElementById('ps-area-budget-select');
-  const cur     = input ? input.value : '';
+  const cur     = input ? _selectedAreaRaw('ps-area-budget-select') : '';
   const areas   = jobName ? psGetAreas(jobName) : [];
   if (input) {
     input._areas = areas;
-    // Keep current value if still valid, otherwise clear
-    if (cur && !areas.includes(cur)) input.value = '';
+    // Keep current value if still valid, otherwise clear (compare against the RAW area key)
+    if (cur && !areas.includes(cur)) { input.value = ''; input._rawArea = ''; }
+    else if (cur) { input._rawArea = cur; input.value = areaDisplayLabel(cur); }
   }
   renderPSAreaBudgetTable();
 }
 
 function renderPSAreaBudgetTable() {
   const jobName = document.getElementById('ps-job-select').value;
-  const area    = document.getElementById('ps-area-budget-select').value;
+  const area    = _selectedAreaRaw('ps-area-budget-select');
   const tbody   = document.getElementById('ps-area-budget-tbody');
   if (!area || !jobName) {
     tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--muted);">Select a job and area above.</td></tr>';
@@ -7834,6 +7875,20 @@ function corbAreaKey(b) {
     : b.area
       ? `[COR] ${b.corNumber} \u2013 ${b.area}`
       : `[COR] ${b.corNumber} \u2013 ${b.description}`;
+}
+// Display-only: users see "[Work Order#N]" while the stored/matching key stays "[Burn#N]".
+// Do NOT change the key itself \u2014 it's saved on records and used to match budgets to inputs.
+function areaDisplayLabel(area) {
+  return typeof area === 'string'
+    ? area.replace(/^\[Burn#/, '[Work Order#').replace(/^\[BURN\]/, '[Work Order]')
+    : (area || '');
+}
+// Raw (matching) value behind a budget-area combobox: prefer the raw area stashed on pick,
+// fall back to the field text (which equals the raw value for plain, non-Burn areas).
+function _selectedAreaRaw(inputId) {
+  const el = document.getElementById(inputId);
+  if (!el) return '';
+  return (el._rawArea != null && el._rawArea !== '') ? el._rawArea : el.value;
 }
 function isSpecialArea(area) {
   return !!(area && (area.startsWith('[COR]') || area.startsWith('[BURN]') || area.startsWith('[Burn#')));
@@ -7983,7 +8038,7 @@ function _psRenderRow(row, i, jobName, areas, isDaily) {
   if (isDaily && !_psEditMode) {
     // Daily paysheet read-only view — plain text
     return `<tr>
-      <td style="${cell}word-break:break-word;overflow-wrap:break-word;white-space:normal;">${eh(row.area||'')}</td>
+      <td style="${cell}word-break:break-word;overflow-wrap:break-word;white-space:normal;">${eh(areaDisplayLabel(row.area)||'')}</td>
       <td style="${cell}word-break:break-word;overflow-wrap:break-word;white-space:normal;">${eh(codeLabel)}</td>
       <td style="${cell}color:#444;font-style:italic;max-width:180px;word-wrap:break-word;overflow-wrap:break-word;white-space:normal;">${eh(row.notes||'')}</td>
       <td style="${cell}text-align:right;">${budgetDisp}</td>
@@ -7995,7 +8050,7 @@ function _psRenderRow(row, i, jobName, areas, isDaily) {
   if (isDaily && _psEditMode) {
     // Daily paysheet edit mode — Area, Labor Code, PTD editable (no W/E Earned / % Complete)
     const areaOpts = ['<option value=""></option>',
-      ...areas.map(a => `<option value="${eh(a)}" ${row.area===a?'selected':''}>${eh(a)}</option>`)
+      ...areas.map(a => `<option value="${eh(a)}" ${row.area===a?'selected':''}>${eh(areaDisplayLabel(a))}</option>`)
     ].join('');
     let codeOpts = '<option value=""></option>';
     PAYROLL_GROUPS.filter(g => isForemanAllowedCode(g.code)).forEach(g => {
@@ -8026,7 +8081,7 @@ function _psRenderRow(row, i, jobName, areas, isDaily) {
   // Weekly / summary edit mode — all columns editable + delete button
   if (_psEditMode) {
     const areaOpts = ['<option value=""></option>',
-      ...areas.map(a => `<option value="${eh(a)}" ${row.area===a?'selected':''}>${eh(a)}</option>`)
+      ...areas.map(a => `<option value="${eh(a)}" ${row.area===a?'selected':''}>${eh(areaDisplayLabel(a))}</option>`)
     ].join('');
     let codeOpts = '<option value=""></option>';
     if (isSpecialArea(row.area)) {
@@ -8084,7 +8139,7 @@ function _psRenderRow(row, i, jobName, areas, isDaily) {
   // Weekly / summary read-only — Area, Labor Code, PTD locked; only W/E Earned is editable
   const n = 'width:100%;background:transparent;border:none;outline:none;font-family:inherit;font-size:inherit;padding:0;text-align:right;';
   return `<tr>
-    <td style="${cell}word-break:break-word;overflow-wrap:break-word;white-space:normal;">${eh(row.area||'')}</td>
+    <td style="${cell}word-break:break-word;overflow-wrap:break-word;white-space:normal;">${eh(areaDisplayLabel(row.area)||'')}</td>
     <td style="${cell}word-break:break-word;overflow-wrap:break-word;white-space:normal;">${eh(codeLabel)}</td>
     <td style="${cell}color:#444;font-style:italic;max-width:180px;word-wrap:break-word;overflow-wrap:break-word;white-space:normal;">${eh(row.notes||'')}</td>
     <td style="${cell}text-align:right;">${budgetDisp}</td>
@@ -8852,7 +8907,7 @@ function psExportPDF() {
       const budDisp  = budgetVal > 0 ? fmtMoney(budgetVal) : '';
       const remDisp  = (budgetVal > 0 || ptdVal > 0) ? (rem < 0 ? '-' : '') + fmtMoney(Math.abs(rem)) : '';
       const pctDisp  = budgetVal > 0 ? pct.toFixed(1) + '%' : '—';
-      const dailyCols = `<td>${eh(row.area||'')}</td><td>${eh(buildCodeLabel(row.area, row.costCode))}</td><td style="color:#555;font-style:italic;max-width:180px;word-wrap:break-word;overflow-wrap:break-word;white-space:normal;">${eh(row.notes||'')}</td><td style="text-align:right;">${budDisp}</td><td style="text-align:right;color:#1a56db;">${fmtMoney(ptdVal)}</td><td style="text-align:right;color:${remColor};">${remDisp}</td>`;
+      const dailyCols = `<td>${eh(areaDisplayLabel(row.area)||'')}</td><td>${eh(buildCodeLabel(row.area, row.costCode))}</td><td style="color:#555;font-style:italic;max-width:180px;word-wrap:break-word;overflow-wrap:break-word;white-space:normal;">${eh(row.notes||'')}</td><td style="text-align:right;">${budDisp}</td><td style="text-align:right;color:#1a56db;">${fmtMoney(ptdVal)}</td><td style="text-align:right;color:${remColor};">${remDisp}</td>`;
       const weekCols  = dailyCols + `<td style="text-align:right;font-weight:700;">${fmtMoney(weAmt)}</td><td style="text-align:center;font-weight:700;color:${pctColor};">${pctDisp}</td>`;
       return `<tr>${isDaily ? dailyCols : weekCols}</tr>`;
     }).join('');
@@ -9368,6 +9423,91 @@ async function diExportOnePDF(subId) {
   if (!ps) { alert('No saved paysheet found for this submission.\n\nUse → Paysheet to create one first.'); return; }
   const label = `Daily_${(sub.job||'NoJob').replace(/[^a-zA-Z0-9 _-]/g,'').trim().replace(/\s+/g,'_')}_${sub.date||''}`;
   await _psExportSheetsAsZip([ps], label);
+}
+
+// ─── Submission Log → Excel export (selected daily inputs) ──────────────────
+// Purely additive & read-only: uses the existing _diSelectedInputs selection and
+// _diLogDocs cache; mutates nothing. One row per employee entry. Building = Area
+// (display label), Level left blank, Labor = PAYROLL_GROUPS description for the code.
+function _diLaborDesc(code) {
+  const g = PAYROLL_GROUPS.find(x => x.code === String(code == null ? '' : code).trim());
+  return g ? g.description : '';
+}
+function _diFmtSubTimestamp(sub) {
+  // Prefer full ISO submittedAt → "M/D/YYYY H:MM:SS"; fall back to date + submittedTime.
+  if (sub.submittedAt) {
+    const d = new Date(sub.submittedAt);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString('en-US') + ' ' +
+             d.toLocaleTimeString('en-US', { hour12: false, hour: 'numeric', minute: '2-digit', second: '2-digit' });
+    }
+  }
+  return `${sub.date || ''}${sub.submittedTime ? ' ' + sub.submittedTime : ''}`.trim();
+}
+function diExportSelectedToExcel() {
+  if (!_diSelectedInputs.size) {
+    alert('Select one or more daily inputs in the Submission Log first (use the checkboxes on the left of each row).');
+    return;
+  }
+  const subs = (_diLogDocs || []).filter(r => _diSelectedInputs.has(r.id));
+  if (!subs.length) { alert('The selected submissions are no longer available. Refresh and try again.'); return; }
+
+  // Build one row per employee entry.
+  const rows = [];
+  subs.forEach(sub => {
+    const ts = _diFmtSubTimestamp(sub);
+    (sub.crews || []).forEach(crew => {
+      const foreman = (crew.crewLeadName || '').trim() || (sub.submittedBy || '');
+      const entries = (crew.entries || []).filter(e => (e.employee || '').trim() || (e.area || '').trim() || (e.costCode || '').trim());
+      const headcount = new Set(entries.map(e => (e.employee || '').trim()).filter(Boolean)).size;
+      entries.forEach(e => {
+        rows.push({
+          timestamp: ts,
+          foreman,
+          building:  areaDisplayLabel(e.area || ''),
+          level:     '',
+          headcount: headcount || '',
+          member:    (e.employee || '').trim(),
+          code:      (e.costCode || '').trim(),
+          labor:     _diLaborDesc(e.costCode),
+        });
+      });
+    });
+  });
+  if (!rows.length) { alert('No employee entries were found in the selected submissions.'); return; }
+
+  // Styled HTML table exported as .xls — Excel opens this and keeps the formatting
+  // (purple header, borders) shown in the sample. No external library needed.
+  const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const headers = ['Timestamp', 'Building', 'Crew Headcount', 'Crew Members', 'Labor Codes', 'Labor'];
+  const thStyle = 'background:#5b3a8e;color:#ffffff;font-weight:bold;text-align:left;padding:6px 10px;border:1px solid #4a2f73;';
+  const tdStyle = 'padding:5px 10px;border:1px solid #d9d2e9;vertical-align:top;';
+  const headHtml = '<tr>' + headers.map(h => `<th style="${thStyle}">${esc(h)}</th>`).join('') + '</tr>';
+  const bodyHtml = rows.map((r, i) => {
+    const bg = i % 2 ? 'background:#f3eefb;' : 'background:#ffffff;';
+    return `<tr style="${bg}">`
+      + `<td style="${tdStyle}white-space:nowrap;">${esc(r.timestamp)}</td>`
+      + `<td style="${tdStyle}">${esc(r.building)}</td>`
+      + `<td style="${tdStyle}text-align:center;">${esc(r.headcount)}</td>`
+      + `<td style="${tdStyle}">${esc(r.member)}</td>`
+      + `<td style="${tdStyle}text-align:center;">${esc(r.code)}</td>`
+      + `<td style="${tdStyle}">${esc(r.labor)}</td>`
+      + `</tr>`;
+  }).join('');
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">`
+    + `<head><meta charset="utf-8"></head><body>`
+    + `<table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:11px;">`
+    + `<thead>${headHtml}</thead><tbody>${bodyHtml}</tbody></table></body></html>`;
+
+  const blob = new Blob(['﻿' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `daily-inputs-${new Date().toISOString().slice(0, 10)}.xls`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function psCancelEdit() {
@@ -11891,10 +12031,10 @@ function _budgetAreaRenderDropdown(inputId) {
   if (!input || !dropdown) return;
   const q        = input.value.trim().toLowerCase();
   const all      = _budgetAreaAreas(inputId);
-  const filtered = q ? all.filter(a => a.toLowerCase().includes(q)) : all;
+  const filtered = q ? all.filter(a => areaDisplayLabel(a).toLowerCase().includes(q) || a.toLowerCase().includes(q)) : all;
   if (!filtered.length) { dropdown.style.display = 'none'; return; }
   dropdown.innerHTML = filtered.map(a =>
-    `<div class="budget-area-opt" data-area="${a.replace(/"/g,'&quot;')}" data-input="${inputId}">${a}</div>`
+    `<div class="budget-area-opt" data-area="${a.replace(/"/g,'&quot;')}" data-input="${inputId}">${areaDisplayLabel(a)}</div>`
   ).join('');
   dropdown.querySelectorAll('.budget-area-opt').forEach(el => {
     el.addEventListener('mousedown', e => {
@@ -11921,7 +12061,7 @@ function budgetAreaInput(inputId) { _budgetAreaRenderDropdown(inputId); }
 function budgetAreaPick(inputId, area) {
   const input    = document.getElementById(inputId);
   const dropdown = document.getElementById(inputId + '-dropdown');
-  if (input)    input.value = area;
+  if (input)    { input._rawArea = area; input.value = areaDisplayLabel(area); }
   if (dropdown) dropdown.style.display = 'none';
   // Fire the corresponding table render
   if (inputId === 'ps-area-budget-select') renderPSAreaBudgetTable();
@@ -11931,7 +12071,7 @@ function budgetAreaPick(inputId, area) {
 function budgetAreaClear(inputId) {
   const input    = document.getElementById(inputId);
   const dropdown = document.getElementById(inputId + '-dropdown');
-  if (input)    { input.value = ''; input.focus(); }
+  if (input)    { input.value = ''; input._rawArea = ''; input.focus(); }
   if (dropdown) dropdown.style.display = 'none';
   if (inputId === 'ps-area-budget-select') renderPSAreaBudgetTable();
   else renderAreaBudgetTable();
@@ -12716,7 +12856,7 @@ function renderCODashboard() {
     <div style="overflow-x:auto;">
       <table style="width:100%;border-collapse:collapse;">
         <thead><tr>
-          <th style="${thStyle}text-align:left;">${_dashIsBurn ? 'Burn #' : 'COR #'}</th>
+          <th style="${thStyle}text-align:left;">${_dashIsBurn ? 'Work Order #' : 'COR #'}</th>
           <th style="${thStyle}text-align:left;">Description</th>
           <th style="${thStyle}text-align:left;">Labor Code</th>
           ${showInternal ? `<th style="${thStyle}text-align:right;">Internal Amt</th>` : ''}
@@ -12771,7 +12911,7 @@ function renderCOLog() {
     const dateStr    = co.submittedAt ? new Date(co.submittedAt).toLocaleDateString() : '—';
     const photoCount = (co.photoUrls || []).length;
     return `<tr>
-      <td style="font-weight:600;">${co.workOrderNumber === '503 - Burn' ? `Burn#${co.burnNumber || '?'}` : (() => { const codes = (co.laborCodes && co.laborCodes.length) ? co.laborCodes : (co.laborCode ? [co.laborCode] : []); return codes.length ? eh(codes.join(', ')) : '—'; })()}</td>
+      <td style="font-weight:600;">${co.workOrderNumber === '503 - Burn' ? `Work Order#${co.burnNumber || '?'}` : (() => { const codes = (co.laborCodes && co.laborCodes.length) ? co.laborCodes : (co.laborCode ? [co.laborCode] : []); return codes.length ? eh(codes.join(', ')) : '—'; })()}</td>
       <td>${eh(co.jobId || '—')}</td>
       <td style="font-size:.8rem;">${eh(co.submittedByEmail || '—')}</td>
       <td style="font-size:.8rem;white-space:nowrap;">${dateStr}</td>
@@ -12808,11 +12948,11 @@ function coSetSubTab(tab) {
   const submitBurnBtn = document.getElementById('co-submit-burn-btn');
   if (coBtn)   { coBtn.style.borderBottomColor   = tab === 'co'   ? 'var(--accent)' : 'transparent'; coBtn.style.color   = tab === 'co'   ? 'var(--accent)' : 'var(--muted)'; }
   if (burnBtn) { burnBtn.style.borderBottomColor = tab === 'burn' ? 'var(--red)'    : 'transparent'; burnBtn.style.color = tab === 'burn' ? 'var(--red)'    : 'var(--muted)'; }
-  if (title)       title.textContent       = tab === 'burn' ? '🔥 Burns (503)'     : '📋 Change Orders';
+  if (title)       title.textContent       = tab === 'burn' ? '🔥 Work Orders'     : '📋 Change Orders';
   if (submitBtn)     submitBtn.style.display     = tab === 'burn' ? 'none' : '';
   if (submitBurnBtn) submitBurnBtn.style.display = tab === 'burn' ? ''     : 'none';
   const thFirst = document.getElementById('co-log-th-first');
-  if (thFirst) thFirst.textContent = tab === 'burn' ? 'Burn #' : 'Labor Code';
+  if (thFirst) thFirst.textContent = tab === 'burn' ? 'Work Order #' : 'Labor Code';
   const thCor = document.getElementById('co-log-th-cor');
   if (thCor) thCor.style.display = tab === 'burn' ? 'none' : '';
   renderCOLog();
@@ -12848,8 +12988,8 @@ function coOpenSubmitModal(burnMode) {
   // Both modes use the same unified fields — just update title and button label
   document.getElementById('co-submit-burn-fields').style.display = 'none'; // legacy fields, never shown
   document.getElementById('co-submit-co-fields').style.display = 'flex';
-  document.getElementById('co-submit-modal-title').textContent = _coBurnMode ? '🔥 Submit 503 Burn' : '📋 Submit Change Order';
-  document.getElementById('co-submit-confirm-btn').textContent = _coBurnMode ? 'Submit 503 Burn' : 'Submit Change Order';
+  document.getElementById('co-submit-modal-title').textContent = _coBurnMode ? '🔥 Submit Work Order' : '📋 Submit Change Order';
+  document.getElementById('co-submit-confirm-btn').textContent = _coBurnMode ? 'Submit Work Order' : 'Submit Change Order';
   document.getElementById('co-submit-modal').classList.add('open');
 }
 
@@ -13321,7 +13461,7 @@ function coOpenDetail(coId) {
   }
 
   document.getElementById('co-detail-title').textContent = _isBurn
-    ? `Burn#${co.burnNumber || '?'}`
+    ? `Work Order#${co.burnNumber || '?'}`
     : `Change Order — WO# ${co.workOrderNumber}`;
   const _burnAreaList = _isBurn
     ? ((co.burnAreas && co.burnAreas.length) ? co.burnAreas : (co.burnArea ? [co.burnArea] : []))
@@ -13364,7 +13504,7 @@ async function coDelete(coId) {
   if (!isAdmin()) { alert('Admin access required to delete Change Orders.'); return; }
   const co = (_cache.changeorders || []).find(c => c.id === coId);
   if (!co) return;
-  const _deleteLabel = co.workOrderNumber === '503 - Burn' ? `Burn#${co.burnNumber || '?'}` : `WO# ${co.workOrderNumber}`;
+  const _deleteLabel = co.workOrderNumber === '503 - Burn' ? `Work Order#${co.burnNumber || '?'}` : `WO# ${co.workOrderNumber}`;
   const _linkedCorbs = (_cache.corbudgets || []).filter(b => b.changeOrderId === coId);
   const _corbCountMsg = _linkedCorbs.length > 0 ? ` (${_linkedCorbs.length} COR budget entr${_linkedCorbs.length === 1 ? 'y' : 'ies'} will also be deleted)` : '';
   if (!confirm(`Delete ${_deleteLabel} for ${co.jobId}?\n\nThis cannot be undone.${_corbCountMsg}`)) return;
